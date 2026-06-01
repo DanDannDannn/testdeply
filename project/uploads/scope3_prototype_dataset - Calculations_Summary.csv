@@ -1,0 +1,11 @@
+Scope 3 Emissions Calculation Summary  |  Linz-Precision Werke GmbH  |  FY 2024,,,,,,,,,,,,,
+Scope3_Category,Category_Name,Methodology,Included_Entries,Emissions_tCO2e,Pct_of_Total,EF_Source_Primary,EF_Version,Prior_Year_tCO2e,YoY_Change_Pct,EF_Version_Change_Flag,EF_Driven_Change_tCO2e,Real_Activity_Change_tCO2e,Coverage_Status
+3.1,Purchased goods and services,Mixed (76% activity / 24% spend),44,24687.55,0.9818379731,ecoinvent 3.10 + Exiobase 3.8,3.10 / 3.8,14700,0.6794251701,YES — ecoinvent updated 3.9→3.10 (+2.3% avg EF increase),338.1,9649.45,Reported
+3.2,Capital goods,Spend-based,3,226.65,0.009014000037,Exiobase 3.8,3.8,205,0.1056097561,NO,,21.65,Reported
+3.3,Fuel and energy-related activities,Spend-based,2,47.44,0.001886715913,Exiobase 3.8,3.8,43.3,0.09561200924,NO,,4.14,Reported
+3.4,Upstream transportation and distribution,Spend-based,4,80.66,0.003207894299,Exiobase 3.8,3.8,51.7,0.5601547389,NO,,28.96,Reported — ⚠ possible double-count R039/E039
+3.5,Waste generated in operations,Activity-based,2,30.24,0.001202662083,ecoinvent 3.10,3.10,27,0.12,YES — minor EF update (+1.1%),,3.24,Reported
+3.6,Business travel,Spend-based,2,71.68,0.002850754567,Exiobase 3.8,3.8,63.1,0.1359746434,NO,,8.58,Reported
+3.7,Employee commuting,—,0,0,0,—,—,0,,NOT APPLICABLE,,,⚠ NOT REPORTED — data not collected
+3.8–3.15,Other categories (8 categories),—,0,0,0,—,—,0,,NOT APPLICABLE,,,⚠ NOT REPORTED — 8 of 15 GHG Protocol categories excluded. Justify or collect data.
+TOTAL,,,,25144.22,,,,15090.1,0.6662725893,,,,

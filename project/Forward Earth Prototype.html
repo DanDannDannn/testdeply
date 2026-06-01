@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Forward Earth — Calculations prototype</title>
+<link rel="stylesheet" href="app.css" />
+<link rel="stylesheet" href="extras.css" />
+<link rel="stylesheet" href="src/AICopilot.css" />
+<link rel="stylesheet" href="src/Analyse.css" />
+<link rel="stylesheet" href="src/Imports2.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="src/Icon.jsx"></script>
+<script type="text/babel" src="src/Logo.jsx"></script>
+<script type="text/babel" src="src/data.jsx"></script>
+<script type="text/babel" src="src/bits.jsx"></script>
+<script type="text/babel" src="src/SortableHeader.jsx"></script>
+<script type="text/babel" src="src/Shell.jsx"></script>
+<script type="text/babel" src="src/PageSections.jsx"></script>
+<script type="text/babel" src="src/AICopilot.jsx"></script>
+<script type="text/babel" src="src/AIThreads.jsx"></script>
+<script type="text/babel" src="src/ForwardAI.jsx"></script>
+<script type="text/babel" src="src/Reports.jsx"></script>
+<script type="text/babel" src="src/Overview.jsx"></script>
+<script type="text/babel" src="src/CalculationQuality.jsx"></script>
+<script type="text/babel" src="src/BoardFilters.jsx"></script>
+<script type="text/babel" src="src/HotspotAnalysis.jsx"></script>
+<script type="text/babel" src="src/Trends.jsx"></script>
+<script type="text/babel" src="src/Calculations.jsx"></script>
+<script type="text/babel" src="src/DataEntries.jsx"></script>
+<script type="text/babel" src="src/AllData.jsx"></script>
+<script type="text/babel" src="src/DataViews.jsx"></script>
+<script type="text/babel" src="src/DataPage.jsx"></script>
+<script type="text/babel" src="src/BulkImport.jsx"></script>
+<script type="text/babel" src="src/Imports2.jsx"></script>
+<script type="text/babel" src="src/ManualEntry.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo } = React;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "density": "comfortable",
+  "drawerWidth": "56vw",
+  "importsVersion": "v2",
+  "aiPresence": "branded",
+  "aiChips": "visible"
+}/*EDITMODE-END*/;
+
+// Hash routing — keep route in sync with window.location.hash so each page
+// has its own URL (e.g. #overview, #calcs). Survives refresh and is preserved
+// when sharing the preview link.
+const VALID_ROUTES = new Set([
+  "getting-started", "forward-ai", "overview", "emission-overview", "hotspot", "quality", "trends",
+  "data", "factors",
+  "import", "manual",
+  "org", "settings",
+  // Legacy aliases — auto-redirected to "data" with the matching tab
+  "calcs", "entries",
+]);
+const readHashRoute = () => {
+  const h = (window.location.hash || "").replace(/^#\/?/, "").split("/")[0];
+  // Allow `report:<id>` routes to pass through directly
+  if (h && h.startsWith("report:")) return h;
+  if (h && VALID_ROUTES.has(h)) return h;
+  // Fall back to legacy localStorage value, then default
+  const stored = localStorage.getItem("fe-proto-route");
+  if (stored && stored.startsWith("report:")) return stored;
+  const r = VALID_ROUTES.has(stored) ? stored : "data";
+  // Migrate legacy routes to the unified "data" route
+  if (r === "calcs" || r === "entries") return "data";
+  return r;
+};
+
+function App() {
+  const [route, setRoute] = useState(readHashRoute);
+  const [calcFilter, setCalcFilter] = useState(() => {
+    const stored = localStorage.getItem("fe-proto-calc-filter");
+    // Migrate legacy keys to the new 3-state taxonomy
+    const map = { needs_review: "suggested", verified: "confirmed", locked: "confirmed" };
+    return map[stored] || stored || "suggested";
+  });
+  const [selCalcId, setSelCalcId] = useState(null);
+  const [selEntryId, setSelEntryId] = useState(null);
+  const [dataTab, setDataTab] = useState(() => {
+    const stored = localStorage.getItem("fe-proto-data-tab");
+    // Built-in tabs only — "deepdive" + "view:..." are ephemeral / loaded on demand.
+    return ["all", "calcs"].includes(stored) ? stored : "all";
+  });
+  useEffect(() => {
+    // Persist only built-in tabs; ephemeral tabs re-create when needed.
+    if (["all", "calcs"].includes(dataTab)) {
+      localStorage.setItem("fe-proto-data-tab", dataTab);
+    }
+  }, [dataTab]);
+  // Chart-explore tab keeps its own filter state so deep-dive filters don't
+  // leak into the Calculations tab.
+  const [exploreFilter, setExploreFilter] = useState("all");
+  const [preselectEntry, setPreselectEntry] = useState(null);
+  const [entriesBatchFilter, setEntriesBatchFilter] = useState(null);
+  const [calcs, setCalcs] = useState(() => window.CALCS);
+  const [entries, setEntries] = useState(() => window.ENTRIES);
+  const [toast, setToast] = useState(null);
+  const [showCreateReport, setShowCreateReport] = useState(false);
+  const { reports, createReport } = useReports();
+
+  // Tweaks
+  const [tweaks, setTweaks] = useState(TWEAK_DEFAULTS);
+  const [tweakOn, setTweakOn] = useState(false);
+  useEffect(() => {
+    const onMsg = (e) => {
+      const d = e.data || {};
+      if (d.type === "__activate_edit_mode") setTweakOn(true);
+      if (d.type === "__deactivate_edit_mode") setTweakOn(false);
+    };
+    window.addEventListener("message", onMsg);
+    window.parent.postMessage({type:"__edit_mode_available"}, "*");
+    return () => window.removeEventListener("message", onMsg);
+  }, []);
+  const updateTweak = (k, v) => {
+    setTweaks(t => ({...t, [k]: v}));
+    window.parent.postMessage({type:"__edit_mode_set_keys", edits: {[k]: v}}, "*");
+  };
+
+  useEffect(() => {
+    localStorage.setItem("fe-proto-route", route);
+    // Keep URL hash in sync with route (no extra history entry on echoes)
+    const target = "#" + route;
+    if (window.location.hash !== target) {
+      window.history.replaceState(null, "", target);
+    }
+  }, [route]);
+  useEffect(() => { localStorage.setItem("fe-proto-calc-filter", calcFilter); }, [calcFilter]);
+
+  // Apply analyse tweaks (AI presence, chip visibility) as body data-attrs so
+  // CSS can swap variants without prop-drilling into every page.
+  useEffect(() => {
+    document.body.setAttribute("data-ai-presence", tweaks.aiPresence || "branded");
+    document.body.setAttribute("data-ai-chips", tweaks.aiChips || "visible");
+  }, [tweaks.aiPresence, tweaks.aiChips]);
+
+  // Listen for back/forward + manual hash edits
+  useEffect(() => {
+    const onHash = () => {
+      const r = readHashRoute();
+      setRoute(r);
+      setSelCalcId(null);
+      setSelEntryId(null);
+    };
+    window.addEventListener("hashchange", onHash);
+    // Ensure URL reflects initial route on first paint
+    if (!window.location.hash) {
+      window.history.replaceState(null, "", "#" + route);
+    }
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  // Deep-dive preset for Calculations — tick bumps on each jump so Calculations re-applies
+  const [calcPreset, setCalcPreset] = useState({ tick: 0, bu: null, scope: null, category: null, query: "", chartSpec: null });
+
+  // When switching routes, clear selections (avoid leaking into other pages)
+  const go = (newRoute, opts = {}) => {
+    // Migrate legacy routes from older deep-links / Overview onJumpTo callers
+    let targetTab = null;
+    if (newRoute === "calcs")   {
+      newRoute = "data";
+      // Chart-driven jumps (deep-dive or chartSpec) land on an ephemeral
+      // "Chart deepdive" tab, separate from the Calculations tab.
+      targetTab = (opts.chartSpec || opts.deepDive) ? "deepdive" : "calcs";
+    }
+    if (newRoute === "entries") { newRoute = "data"; targetTab = "activity"; }
+    setRoute(newRoute);
+    setSelCalcId(null);
+    if (newRoute !== "data" || targetTab !== "activity") setSelEntryId(null);
+    if (opts.filter) setCalcFilter(opts.filter);
+    if (opts.entryId) { setPreselectEntry(opts.entryId); setSelEntryId(opts.entryId); targetTab = targetTab || "all"; }
+    if (opts.calcId)  { setSelCalcId(opts.calcId);  targetTab = targetTab || "calcs"; }
+    if (targetTab) setDataTab(targetTab);
+    if (newRoute === "data" && targetTab === "all") {
+      if (opts.batchId) setEntriesBatchFilter(opts.batchId);
+      else if (opts.clearBatchFilter) setEntriesBatchFilter(null);
+    }
+    if (opts.deepDive) {
+      // Reset other dimensions, set only what the caller passed
+      setCalcPreset(p => ({
+        tick: p.tick + 1,
+        bu: opts.deepDive.bu ?? null,
+        scope: opts.deepDive.scope ?? null,
+        category: opts.deepDive.category ?? null,
+        query: opts.deepDive.query ?? "",
+        chartSpec: opts.chartSpec ?? null,
+      }));
+      if (!opts.filter) setCalcFilter("all"); // default to all statuses on a deep dive
+      // Also reset the explore filter so deep-dive chart starts from "all"
+      if (!opts.filter) setExploreFilter("all");
+      else setExploreFilter(opts.filter);
+    } else if (opts.chartSpec) {
+      // Pure chart carry-over (no deep-dive filter)
+      setCalcPreset(p => ({ ...p, tick: p.tick + 1, chartSpec: opts.chartSpec }));
+    }
+  };
+
+  // Route normalisation: route can be a plain key OR `report:<id>` for custom
+  // report boards. readHashRoute validates plain keys; report: routes are
+  // accepted as-is.
+  const isReportRoute = route && route.startsWith && route.startsWith("report:");
+  const activeReportId = isReportRoute ? route.split(":")[1] : null;
+  const activeReport = activeReportId ? reports.find(r => r.id === activeReportId) : null;
+
+  const needsReviewCount = calcs.filter(c => c.status === "pending" || c.status === "suggested").length;
+
+  const routeTitles = {
+    "getting-started":"Getting started",
+    "forward-ai":"Forward AI",
+    overview:"Home",
+    "emission-overview":"Emission overview",
+    hotspot:"Hotspot analysis",
+    quality:"Calculation quality",
+    trends:"Trends",
+    data:"Data", factors:"Emission Factors",
+    import:"Imports", manual:"Manual entry",
+    org:"Organization", settings:"Settings",
+  };
+  const pageTitle = isReportRoute ? (activeReport ? activeReport.name : "Report") : (routeTitles[route] || "—");
+
+  // ---- Calc drawer plumbing ----
+  const filteredCalcs = useMemo(() => {
+    if (calcFilter === "all") return calcs;
+    if (calcFilter === "pending")   return calcs.filter(c => c.status === "pending");
+    if (calcFilter === "suggested") return calcs.filter(c => c.status === "suggested");
+    if (calcFilter === "confirmed") return calcs.filter(c => c.status === "confirmed");
+    // Legacy filter keys → suggested (the old "needs_review")
+    if (calcFilter === "needs_review") return calcs.filter(c => c.status === "pending" || c.status === "suggested");
+    return calcs;
+  }, [calcs, calcFilter]);
+
+  const activeCalc = calcs.find(c => c.id === selCalcId);
+  const activeEntry = entries.find(e => e.id === selEntryId);
+
+  const navCalc = (dir) => {
+    const idx = filteredCalcs.findIndex(c => c.id === selCalcId);
+    if (idx < 0) return;
+    const next = filteredCalcs[Math.max(0, Math.min(filteredCalcs.length-1, idx + dir))];
+    if (next) setSelCalcId(next.id);
+  };
+  const navEntry = (dir) => {
+    const idx = entries.findIndex(e => e.id === selEntryId);
+    if (idx < 0) return;
+    const next = entries[Math.max(0, Math.min(entries.length-1, idx + dir))];
+    if (next) setSelEntryId(next.id);
+  };
+
+  const bulkToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2400); };
+  useEffect(() => {
+    const h = (e) => bulkToast(e.detail);
+    window.addEventListener("fe-toast", h);
+    return () => window.removeEventListener("fe-toast", h);
+  }, []);
+
+  // Export jobs — progress banners stacked bottom-right
+  const [exportJobs, setExportJobs] = useState([]);
+  useEffect(() => {
+    const onStart = (e) => {
+      const { title, meta, filename, rows } = e.detail || {};
+      const id = "exp_" + Math.random().toString(36).slice(2, 8);
+      // Scale duration with rows: ~1.2s min, ~4s for large
+      const duration = Math.min(4200, Math.max(1400, 900 + (rows || 200) * 1.2));
+      const startedAt = Date.now();
+      setExportJobs(js => [...js, { id, title, meta, filename, progress: 0, done: false, duration, startedAt }]);
+      const tick = setInterval(() => {
+        setExportJobs(js => js.map(j => {
+          if (j.id !== id || j.done) return j;
+          const p = Math.min(100, ((Date.now() - j.startedAt) / j.duration) * 100);
+          if (p >= 100) { clearInterval(tick); return { ...j, progress: 100, done: true }; }
+          return { ...j, progress: p };
+        }));
+      }, 140);
+      // Auto-dismiss 10s after completion
+      setTimeout(() => {
+        setExportJobs(js => js.filter(j => j.id !== id));
+      }, duration + 10000);
+    };
+    window.addEventListener("fe-export-start", onStart);
+    return () => window.removeEventListener("fe-export-start", onStart);
+  }, []);
+  const dismissJob = (id) => setExportJobs(js => js.filter(j => j.id !== id));
+
+  // Bulk actions for Data Entries — act on the entry_status and sync child calcs where meaningful
+  const entriesBulk = {
+    status: (ids, status) => {
+      // Update the entry-level status directly; no automatic propagation to calcs,
+      // except that "processing" clears any prior "confirmed" back to "suggested".
+      setEntries(es => es.map(e => ids.includes(e.id) ? {...e, entry_status: status} : e));
+      if (status === "processing") {
+        setCalcs(cs => cs.map(c => ids.includes(c.entryId) && c.status === "confirmed" ? {...c, status: "suggested"} : c));
+      }
+      bulkToast(`${ids.length} entries · set to ${status}`);
+    },
+    assign: (ids, user) => {
+      setEntries(es => es.map(e => ids.includes(e.id) ? {...e, user_assigned: user} : e));
+      setCalcs(cs => cs.map(c => ids.includes(c.entryId) ? {...c, user_assigned: user} : c));
+      bulkToast(`${ids.length} entries reassigned to ${user}`);
+    },
+    delete: (ids) => {
+      setEntries(es => es.filter(e => !ids.includes(e.id)));
+      setCalcs(cs => cs.filter(c => !ids.includes(c.entryId)));
+      bulkToast(`${ids.length} entries deleted · undo in 10s`);
+    },
+    export: (ids) => bulkToast(`Exporting ${ids.length} entries to CSV…`),
+  };
+
+  // Bulk actions for Calculations
+  const calcsBulk = {
+    status: (ids, status) => {
+      setCalcs(cs => cs.map(c => ids.includes(c.id)
+        ? {...c, status, confidence: status === "pending" ? null : c.confidence}
+        : c));
+      // Re-compute parent entry_status when child calcs change
+      setEntries(es => es.map(e => {
+        const myCalcs = (es === entries ? calcs : null); // fall back
+        return e; // entry_status will be re-evaluated lazily elsewhere if needed
+      }));
+      bulkToast(`${ids.length} calculations · set to ${status}`);
+    },
+    assign: (ids, user) => {
+      setCalcs(cs => cs.map(c => ids.includes(c.id) ? {...c, user_assigned: user} : c));
+      bulkToast(`${ids.length} calculations reassigned to ${user}`);
+    },
+    delete: (ids) => {
+      setCalcs(cs => cs.filter(c => !ids.includes(c.id)));
+      bulkToast(`${ids.length} calculations deleted`);
+    },
+    export: (ids) => bulkToast(`Exporting ${ids.length} calculations to CSV…`),
+  };
+
+  const approve = () => {
+    if (!activeCalc) return;
+    setCalcs(cs => cs.map(c => c.id === activeCalc.id ? {...c, status: "confirmed"} : c));
+    setToast(`Calculation ${activeCalc.id} confirmed · ${window.fmtKgSmart(activeCalc.kgCO2e)} kgCO₂e`);
+    setTimeout(() => setToast(null), 2200);
+  };
+  const reject = () => {
+    if (!activeCalc) return;
+    setCalcs(cs => cs.map(c => c.id === activeCalc.id ? {...c, status: "pending", confidence: null} : c));
+    setToast(`Calculation ${activeCalc.id} sent back to the AI match queue`);
+    setTimeout(() => setToast(null), 2200);
+  };
+  const swap = () => {
+    setToast("Factor swap — would open factor picker");
+    setTimeout(() => setToast(null), 1800);
+  };
+
+  return (
+    <div className="app" data-screen-label={`FE · ${routeTitles[route] || route}`} style={{fontSize: tweaks.density === "compact" ? 13 : 14}}>
+      <Sidebar
+        route={route}
+        setRoute={go}
+        needsReviewCount={needsReviewCount}
+        onCreateReport={() => setShowCreateReport(true)}
+        reports={reports}
+      />
+      <div className="app-main">
+        <Topbar title={pageTitle} />
+        <div className="app-scroll">
+          {route === "overview" && (
+            <Overview view="home" calcs={calcs} entries={entries} onJumpTo={(r,opts)=>go(r,opts)} />
+          )}
+          {route === "emission-overview" && (
+            <Overview view="emission" calcs={calcs} entries={entries} onJumpTo={(r,opts)=>go(r,opts)} />
+          )}
+          {route === "hotspot" && (
+            <HotspotAnalysis calcs={calcs} entries={entries} onJumpTo={(r,opts)=>go(r,opts)} />
+          )}
+          {route === "forward-ai" && (
+            <ForwardAI
+              suggestions={window.computeHomeSuggestions ? window.computeHomeSuggestions(calcs, entries) : []}
+              onJumpTo={(r,opts) => go(r, opts)}
+            />
+          )}
+          {route === "quality" && (
+            <CalculationQuality calcs={calcs} entries={entries} onJumpTo={(r,opts)=>go(r,opts)} />
+          )}
+          {route === "trends" && (
+            <Trends calcs={calcs} entries={entries} onJumpTo={(r,opts)=>go(r,opts)} />
+          )}
+          {isReportRoute && (
+            <ReportBoard
+              reportId={activeReportId}
+              onJumpTo={(r,opts) => go(r, opts)}
+              calcs={calcs}
+              entries={entries}
+              renderSection={(item, report) => {
+                const pageProps = { calcs, entries, onJumpTo: (r,opts) => go(r, opts) };
+                return (
+                  <ReportRenderContext.Provider value={{
+                    source: item.source,
+                    sectionIds: [item.sectionId],
+                    isReport: !!(report && report.isReport),
+                    standard: report && report.isReport ? report.standard : null,
+                  }}>
+                    {item.source === "overview" && <Overview {...pageProps} />}
+                    {item.source === "quality"  && <CalculationQuality {...pageProps} />}
+                    {item.source === "trends"   && <Trends {...pageProps} />}
+                  </ReportRenderContext.Provider>
+                );
+              }}
+            />
+          )}
+          {route === "data" && (
+            <DataPage
+              tab={dataTab}
+              setTab={setDataTab}
+              calcPreset={calcPreset}
+              calcs={calcs}
+              entries={entries}
+              selCalcId={selCalcId}
+              setSelCalcId={setSelCalcId}
+              calcFilter={calcFilter}
+              setCalcFilter={setCalcFilter}
+              exploreFilter={exploreFilter}
+              setExploreFilter={setExploreFilter}
+              onCloseDeepdive={() => {
+                // Clear chart context and fall back to All data
+                setCalcPreset({ tick: 0, bu: null, scope: null, category: null, query: "", chartSpec: null });
+                setExploreFilter("all");
+                setDataTab("all");
+              }}
+              onApplySavedView={(view) => {
+                setCalcPreset({
+                  tick: Date.now(),
+                  bu: view.deepDive?.bu ?? null,
+                  scope: view.deepDive?.scope ?? null,
+                  category: view.deepDive?.category ?? null,
+                  query: view.deepDive?.query ?? "",
+                  chartSpec: view.chartSpec ?? null,
+                });
+                setExploreFilter(view.filter || "all");
+              }}
+              onViewEntry={(eid) => { setSelEntryId(eid); setPreselectEntry(eid); }}
+              calcsBulk={calcsBulk}
+              selEntryId={selEntryId}
+              setSelEntryId={setSelEntryId}
+              preselectEntry={preselectEntry}
+              onViewCalc={(cid) => setSelCalcId(cid)}
+              onViewImport={(batchId) => { go("import"); bulkToast(`Would open Bulk imports · ${batchId}`); }}
+              entriesBatchFilter={entriesBatchFilter}
+              onClearBatchFilter={() => setEntriesBatchFilter(null)}
+              entriesBulk={entriesBulk}
+            />
+          )}
+          {/* Imports page hidden — uncomment to re-enable
+          {route === "import" && (
+            tweaks.importsVersion === "v2"
+              ? <ImportsV2Home onViewEntries={(batchId) => go("entries", {batchId})} />
+              : <BulkImportHome onViewEntries={(batchId) => go("entries", {batchId})} />
+          )}
+          */}
+          {route === "manual" && (
+            <ManualEntry
+              onJumpTo={(r) => go(r)}
+              onSubmitted={(entry) => {
+                // Toast handled inside ManualEntry's success state
+                window.dispatchEvent(new CustomEvent("fe-toast", { detail: `Entry ${entry.id} added · matching emission factor…` }));
+              }}
+            />
+          )}
+          {!(isReportRoute || ["overview","emission-overview","hotspot","quality","trends","data","manual","forward-ai"].includes(route)) && (
+            <div className="card" style={{padding:0, textAlign:"center"}}>
+              <div className="metric-label">{routeTitles[route]}</div>
+              <h2 className="page-title" style={{marginTop:12}}>{routeTitles[route]}</h2>
+              <div className="page-subtitle" style={{marginTop:6}}>
+                Out of scope for this prototype. Try <span className="link" onClick={() => go("overview")}>Overview</span> or <span className="link" onClick={() => go("data")}>Data</span>.
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Calculation drawer — open on Calculations, Chart deepdive, and any saved view */}
+      {route === "data" && (dataTab === "calcs" || dataTab === "deepdive" || (dataTab && dataTab.startsWith("view:"))) && activeCalc && (
+        <CalculationDrawer
+          calc={activeCalc}
+          calcs={calcs}
+          entries={entries}
+          onClose={() => setSelCalcId(null)}
+          onNav={navCalc}
+          onApprove={approve}
+          onReject={reject}
+          onSwap={swap}
+          onViewEntry={(eid) => { setSelCalcId(null); setDataTab("all"); setSelEntryId(eid); setPreselectEntry(eid); }}
+          onViewCalc={(cid) => setSelCalcId(cid)}
+        />
+      )}
+
+      {/* Entry drawer — only when Data page is on the activity tab */}
+      {route === "data" && dataTab === "all" && activeEntry && (
+        <EntryDrawer
+          entry={activeEntry}
+          calcs={calcs}
+          batches={window.BATCHES}
+          onClose={() => setSelEntryId(null)}
+          onNav={navEntry}
+          onViewCalc={(cid) => { setSelEntryId(null); setDataTab("calcs"); setSelCalcId(cid); }}
+          onViewImport={(batchId) => { setSelEntryId(null); go("import"); bulkToast(`Would open Bulk imports · ${batchId}`); }}
+        />
+      )}
+
+      {showCreateReport && (
+        <CreateReportModal
+          onClose={() => setShowCreateReport(false)}
+          onCreate={({ name, standard }) => {
+            const r = createReport({ name, standard });
+            setShowCreateReport(false);
+            go(`report:${r.id}`);
+          }}
+        />
+      )}
+
+      {toast && (
+        <div className="toast"><Icon name="check" size={16} className="icon"/>{toast}</div>
+      )}
+
+      {exportJobs.length > 0 && (
+        <div className="export-jobs">
+          {exportJobs.map(j => (
+            <div key={j.id} className={"export-job " + (j.done ? "done" : "")}>
+              <div className="ej-top">
+                <div className="ej-icon">
+                  <Icon name={j.done ? "check" : "arrowDown"} size={16}/>
+                </div>
+                <div className="ej-body">
+                  <div className="ej-title">{j.done ? "Export ready" : "Preparing export…"}</div>
+                  <div className="ej-meta">
+                    <span>{j.title}</span>
+                    {j.meta && <><span>·</span><span>{j.meta}</span></>}
+                  </div>
+                </div>
+                <button className="ej-close" onClick={() => dismissJob(j.id)} aria-label="Dismiss">
+                  <Icon name="close" size={14}/>
+                </button>
+              </div>
+              <div className="ej-progress">
+                <div className="ej-progress-fill" style={{width: j.progress + "%"}}/>
+              </div>
+              {j.done && (
+                <div className="ej-actions">
+                  <button className="link-btn" onClick={() => dismissJob(j.id)}>
+                    <Icon name="arrowDown" size={13}/>Download {j.filename}
+                  </button>
+                  <button className="link-btn muted" onClick={() => dismissJob(j.id)}>Dismiss</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Tweaks panel */}
+      {tweakOn && (
+        <div className="tweaks">
+          <h4><Icon name="settings" size={14}/>Tweaks</h4>
+          <div className="row">
+            <label>Density</label>
+            <select value={tweaks.density} onChange={e => updateTweak("density", e.target.value)}>
+              <option value="comfortable">Comfortable</option>
+              <option value="compact">Compact</option>
+            </select>
+          </div>
+          <div className="row">
+            <label>Imports flow</label>
+            <select value={tweaks.importsVersion} onChange={e => updateTweak("importsVersion", e.target.value)}>
+              <option value="v2">v2 — Reimagined (Upload → Process → Review → Submit)</option>
+              <option value="v1">v1 — Original 3-step wizard</option>
+            </select>
+          </div>
+          <div style={{margin: "8px 0 4px 0", borderTop:"1px solid var(--fe-border-subtle)", paddingTop:8, fontSize:11, fontWeight:600, color:"var(--fe-fg-muted)", letterSpacing:"0.04em", textTransform:"uppercase"}}>
+            Forward AI
+          </div>
+          <div className="row">
+            <label>AI presence</label>
+            <select value={tweaks.aiPresence || "branded"} onChange={e => updateTweak("aiPresence", e.target.value)}>
+              <option value="branded">Branded — gradient &amp; sparkle</option>
+              <option value="subtle">Subtle — neutral, native feel</option>
+            </select>
+          </div>
+          <div className="row">
+            <label>Suggested chips</label>
+            <select value={tweaks.aiChips || "visible"} onChange={e => updateTweak("aiChips", e.target.value)}>
+              <option value="visible">Always visible</option>
+              <option value="collapsed">Collapsed by default</option>
+            </select>
+          </div>
+          <div className="row">
+            <label>Drawer width</label>
+            <select value={tweaks.drawerWidth} onChange={e => { updateTweak("drawerWidth", e.target.value); document.documentElement.style.setProperty("--fe-drawer-w", e.target.value); }}>
+              <option value="40vw">Narrow (40vw)</option>
+              <option value="48vw">Default (48vw)</option>
+              <option value="56vw">Wide (56vw)</option>
+            </select>
+          </div>
+          <div style={{fontSize:11, color:"var(--fe-fg-muted)", marginTop:8, borderTop:"1px solid var(--fe-border-subtle)", paddingTop:8}}>
+            Shortcuts: <span className="kbd">J</span>/<span className="kbd">K</span> next/prev · <span className="kbd">Esc</span> close drawer
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Apply drawer width CSS var
+document.documentElement.style.setProperty("--fe-drawer-w", "48vw");
+const style = document.createElement("style");
+style.textContent = `.drawer { width: var(--fe-drawer-w, 48vw); }`;
+document.head.appendChild(style);
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>

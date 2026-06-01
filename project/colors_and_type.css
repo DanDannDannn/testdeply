@@ -1,0 +1,265 @@
+/* ==========================================================================
+   Forward Earth — Design Tokens
+   Source of truth: Forward Earth Design Library.fig
+   Satoshi is the Forward Earth theme font. Partner themes swap font + accents.
+   ========================================================================== */
+
+/* --- Satoshi (self-hosted, variable fonts in /fonts) -------------------- */
+@font-face {
+  font-family: "Satoshi";
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: swap;
+  src: url("fonts/Satoshi-Variable.ttf") format("truetype-variations"),
+       url("fonts/Satoshi-Variable.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Satoshi";
+  font-style: italic;
+  font-weight: 300 900;
+  font-display: swap;
+  src: url("fonts/Satoshi-VariableItalic.ttf") format("truetype-variations"),
+       url("fonts/Satoshi-VariableItalic.ttf") format("truetype");
+}
+
+:root {
+  /* ---------------------------------------------------------------------
+     BRAND & PARTNER ACCENTS
+     Accent is the primary interactive color. Swap these three vars to
+     retheme for a partner. All other tokens derive from grayscale + feedback.
+     --------------------------------------------------------------------- */
+  --fe-accent-primary: #5A4DFF;      /* Forward Earth indigo/violet — primary buttons, links */
+  --fe-accent-primary-hover: #3F32E8;
+  --fe-accent-primary-pressed: #2E22C7;
+  --fe-accent-primary-soft: #EBE5FF; /* 50–100 tint — avatar bg, badges */
+  --fe-accent-primary-softer: #F2F3FB;
+  --fe-accent-secondary: #8A36FF;    /* violet — visible on Secaro partner theme */
+  --fe-brand-orange: #FF9E0D;        /* Forward Earth logo mark orange */
+
+  /* ---------------------------------------------------------------------
+     PARTNER THEME SWATCHES (surface elsewhere in the file for reference)
+     --------------------------------------------------------------------- */
+  --fe-partner-novisto: #001233;     /* Novisto navy */
+  --fe-partner-assent: #215273;      /* Assent teal-navy */
+  --fe-partner-prewave: #181615;     /* Prewave near-black */
+  --fe-partner-secaro: #8A36FF;      /* Secaro violet */
+
+  /* ---------------------------------------------------------------------
+     COLOR SCALES — 11-step (50→950). Accents below are Primary (indigo).
+     See Color page of the Figma file for all scales.
+     --------------------------------------------------------------------- */
+  --fe-primary-50:  #ECEFFF;
+  --fe-primary-100: #DDE2FF;
+  --fe-primary-200: #C2C9FF;
+  --fe-primary-300: #9DA5FF;
+  --fe-primary-400: #7A7DFF;
+  --fe-primary-500: #5A4DFF;   /* brand */
+  --fe-primary-600: #4435E8;
+  --fe-primary-700: #342AC0;
+  --fe-primary-800: #2A2599;
+  --fe-primary-900: #1E1A70;
+  --fe-primary-950: #0E012E;
+
+  --fe-secondary-50:  #FAF8FF;
+  --fe-secondary-100: #EFE8FF;
+  --fe-secondary-200: #DDC9FF;
+  --fe-secondary-300: #C4A3FF;
+  --fe-secondary-400: #AD6EFF;
+  --fe-secondary-500: #8A36FF;
+  --fe-secondary-600: #7322E8;
+  --fe-secondary-700: #5A14C0;
+  --fe-secondary-800: #420E94;
+  --fe-secondary-900: #2E0A6B;
+  --fe-secondary-950: #1A0440;
+
+  /* Neutral grays — pure */
+  --fe-gray-50:  #F9F9FA;
+  --fe-gray-100: #EBEBEE;
+  --fe-gray-200: #CBCBD4;
+  --fe-gray-300: #AFAFBD;
+  --fe-gray-400: #949497;
+  --fe-gray-500: #7A7A91;
+  --fe-gray-600: #5E5E6E;
+  --fe-gray-700: #45454F;
+  --fe-gray-800: #2E2E38;
+  --fe-gray-900: #1A1B22;
+  --fe-gray-950: #0B1031;
+
+  /* Neutral grays — tinted (slight blue cast — matches product UI) */
+  --fe-tinted-50:  #F9F9FD;
+  --fe-tinted-100: #EAEBF6;
+  --fe-tinted-200: #CACADB;
+  --fe-tinted-300: #9494A7;
+  --fe-tinted-400: #7A7A91;
+  --fe-tinted-500: #5A5A80;
+  --fe-tinted-600: #3F3F66;
+  --fe-tinted-700: #2A2A52;
+  --fe-tinted-800: #1C1C41;
+  --fe-tinted-900: #101033;
+  --fe-tinted-950: #050820;
+
+  /* Semantic — Error */
+  --fe-error-50:  #FDF1F1;
+  --fe-error-100: #FBE0E0;
+  --fe-error-200: #F7B9B9;
+  --fe-error-300: #F29292;
+  --fe-error-400: #ED6B6B;
+  --fe-error-500: #F35151;   /* product error bar */
+  --fe-error-600: #C93A3A;
+  --fe-error-700: #9E2626;
+  --fe-error-800: #721717;
+  --fe-error-900: #470C0C;
+  --fe-error-950: #1E0404;
+
+  /* Semantic — Success (green) */
+  --fe-success-50:  #DDFFE3;
+  --fe-success-100: #B7FFC3;
+  --fe-success-200: #7AFE8D;
+  --fe-success-300: #3DF75C;
+  --fe-success-400: #19DD39;
+  --fe-success-500: #0FB930;
+  --fe-success-600: #088F25;
+  --fe-success-700: #03661A;
+  --fe-success-800: #00400F;
+  --fe-success-900: #001F06;
+  --fe-success-950: #000C02;
+
+  /* Semantic — Alert (orange) */
+  --fe-alert-50:  #FFF7ED;
+  --fe-alert-100: #FFE7C9;
+  --fe-alert-200: #FFC888;
+  --fe-alert-300: #FFA144;
+  --fe-alert-400: #FF750D;   /* Dashboard is updating bar */
+  --fe-alert-500: #E25B00;
+  --fe-alert-600: #B74800;
+  --fe-alert-700: #8B3600;
+  --fe-alert-800: #5F2400;
+  --fe-alert-900: #391500;
+  --fe-alert-950: #180900;
+
+  /* Semantic — Neutral (maps to secondary violet for informational chips) */
+  --fe-neutral-50:  var(--fe-secondary-50);
+  --fe-neutral-500: var(--fe-secondary-500);
+  --fe-neutral-900: var(--fe-secondary-900);
+
+  /* ---------------------------------------------------------------------
+     SEMANTIC ROLES — prefer these in product UI
+     --------------------------------------------------------------------- */
+  --fe-bg-app: #FFFFFF;
+  --fe-bg-panel: #F9F9FD;        /* main-area background */
+  --fe-bg-surface: #FFFFFF;      /* card surface */
+  --fe-bg-subtle: #F2F3FB;       /* hover row, muted region */
+  --fe-bg-inverse: #0B1031;      /* dark pill (Getting Started button) */
+
+  --fe-border-subtle: #EBEBEE;
+  --fe-border-default: #CBCBD4;
+  --fe-border-strong: #AFAFBD;
+  --fe-border-focus: var(--fe-accent-primary);
+
+  --fe-fg-strong: #0B1031;       /* headlines */
+  --fe-fg-default: #1A1B22;      /* body */
+  --fe-fg-muted: #7A7A91;        /* labels, helper text */
+  --fe-fg-subtle: #AFAFBD;       /* tertiary, disabled */
+  --fe-fg-on-accent: #FFFFFF;
+  --fe-fg-accent: var(--fe-accent-primary);
+
+  /* Chart palette (in-order use) */
+  --fe-chart-scope-1: #F35151;   /* Scope 1 — fuels, combustion */
+  --fe-chart-scope-2: #AD6EFF;   /* Scope 2 — electricity */
+  --fe-chart-scope-3: #00BBA7;   /* Scope 3 — supply chain (teal) */
+  --fe-chart-accent: #5A4DFF;
+  --fe-chart-neutral: #CBCBD4;
+
+  /* ---------------------------------------------------------------------
+     TYPOGRAPHY — Satoshi base, Inter partner fallback
+     --------------------------------------------------------------------- */
+  --fe-font-sans: "Satoshi", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --fe-font-display: "Satoshi", "Inter", system-ui, sans-serif;
+  --fe-font-mono: "Source Code Pro", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* 9-step scale from the Figma Typography frame */
+  --fe-text-xs: 10px;    --fe-lh-xs: 16px;
+  --fe-text-sm: 12px;    --fe-lh-sm: 20px;
+  --fe-text-base: 14px;  --fe-lh-base: 24px;   /* default UI text */
+  --fe-text-lg: 16px;    --fe-lh-lg: 26px;
+  --fe-text-xl: 18px;    --fe-lh-xl: 28px;
+  --fe-text-2xl: 20px;   --fe-lh-2xl: 30px;
+  --fe-text-3xl: 24px;   --fe-lh-3xl: 36px;
+  --fe-text-4xl: 28px;   --fe-lh-4xl: 40px;
+  --fe-text-5xl: 35px;   --fe-lh-5xl: 40px;
+  --fe-text-6xl: 60px;   --fe-lh-6xl: 60px;
+
+  --fe-weight-light: 300;
+  --fe-weight-regular: 400;
+  --fe-weight-medium: 500;
+  --fe-weight-bold: 700;
+
+  --fe-tracking-tight: -0.16px;
+  --fe-tracking-normal: 0;
+
+  /* ---------------------------------------------------------------------
+     SPACING — 4px base
+     --------------------------------------------------------------------- */
+  --fe-space-0: 0;
+  --fe-space-1: 4px;
+  --fe-space-2: 8px;
+  --fe-space-3: 12px;
+  --fe-space-4: 16px;
+  --fe-space-5: 20px;
+  --fe-space-6: 24px;
+  --fe-space-8: 32px;
+  --fe-space-10: 40px;
+  --fe-space-12: 48px;
+  --fe-space-16: 64px;
+
+  /* ---------------------------------------------------------------------
+     RADII — in the Figma: 4 (swatch), 8 (inputs/icon wells), 12 (cards)
+     --------------------------------------------------------------------- */
+  --fe-radius-none: 0;
+  --fe-radius-xs: 4px;
+  --fe-radius-sm: 6px;
+  --fe-radius-md: 8px;
+  --fe-radius-lg: 12px;
+  --fe-radius-xl: 16px;
+  --fe-radius-full: 9999px;
+
+  /* ---------------------------------------------------------------------
+     SHADOWS — from Figma card shadow set
+     --------------------------------------------------------------------- */
+  --fe-shadow-xs: 0 1px 2px 0 rgba(11, 16, 49, 0.05);
+  --fe-shadow-sm: 0 1px 3px 0 rgba(11, 16, 49, 0.08), 0 1px 2px -1px rgba(11, 16, 49, 0.08);
+  --fe-shadow-md: 0 4px 12px -2px rgba(11, 16, 49, 0.10);
+  --fe-shadow-lg: 0 12px 60px 0 rgba(0,0,0,0.15), 0 16px 64px 0 rgba(0,0,85,0.024), 0 16px 36px -20px rgba(0,6,46,0.20);
+  --fe-shadow-focus: 0 0 0 4px rgba(90, 77, 255, 0.16);
+
+  /* Transitions */
+  --fe-motion-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  --fe-motion-base: 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  --fe-motion-slow: 240ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ==========================================================================
+   SEMANTIC TYPE RAMPS — plain HTML defaults so marketing pages "just work"
+   ========================================================================== */
+body {
+  font-family: var(--fe-font-sans);
+  font-size: var(--fe-text-base);
+  line-height: var(--fe-lh-base);
+  color: var(--fe-fg-default);
+  background: var(--fe-bg-app);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.fe-display { font-size: var(--fe-text-6xl); line-height: var(--fe-lh-6xl); font-weight: var(--fe-weight-bold); letter-spacing: var(--fe-tracking-tight); color: var(--fe-fg-strong); }
+.fe-h1      { font-size: var(--fe-text-5xl); line-height: var(--fe-lh-5xl); font-weight: var(--fe-weight-medium); letter-spacing: var(--fe-tracking-tight); color: var(--fe-fg-strong); }
+.fe-h2      { font-size: var(--fe-text-4xl); line-height: var(--fe-lh-4xl); font-weight: var(--fe-weight-medium); letter-spacing: var(--fe-tracking-tight); color: var(--fe-fg-strong); }
+.fe-h3      { font-size: var(--fe-text-3xl); line-height: var(--fe-lh-3xl); font-weight: var(--fe-weight-medium); color: var(--fe-fg-strong); }
+.fe-h4      { font-size: var(--fe-text-2xl); line-height: var(--fe-lh-2xl); font-weight: var(--fe-weight-medium); color: var(--fe-fg-strong); }
+.fe-h5      { font-size: var(--fe-text-lg); line-height: var(--fe-lh-lg); font-weight: var(--fe-weight-bold); color: var(--fe-fg-strong); }
+.fe-body-lg { font-size: var(--fe-text-lg); line-height: var(--fe-lh-lg); font-weight: var(--fe-weight-regular); }
+.fe-body    { font-size: var(--fe-text-base); line-height: var(--fe-lh-base); font-weight: var(--fe-weight-medium); }
+.fe-body-sm { font-size: var(--fe-text-sm); line-height: var(--fe-lh-sm); font-weight: var(--fe-weight-medium); }
+.fe-caption { font-size: var(--fe-text-sm); line-height: var(--fe-lh-sm); color: var(--fe-fg-muted); font-weight: var(--fe-weight-medium); }
+.fe-label   { font-size: var(--fe-text-sm); line-height: var(--fe-lh-sm); color: var(--fe-fg-accent); font-weight: var(--fe-weight-medium); letter-spacing: 0.2px; }
+.fe-mono    { font-family: var(--fe-font-mono); font-size: var(--fe-text-sm); }

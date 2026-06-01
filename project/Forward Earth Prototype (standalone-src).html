@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Forward Earth — Calculations prototype</title>
+<link rel="stylesheet" href="app.css" />
+<link rel="stylesheet" href="extras.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<template id="__bundler_thumbnail" data-bg-color="#F4F5F8">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#F4F5F8"/>
+    <!-- Sidebar -->
+    <rect x="80" y="120" width="200" height="560" rx="14" fill="#1F2640"/>
+    <rect x="104" y="156" width="120" height="14" rx="4" fill="#7A7DFF"/>
+    <rect x="104" y="200" width="152" height="10" rx="3" fill="#3B4366"/>
+    <rect x="104" y="226" width="120" height="10" rx="3" fill="#3B4366"/>
+    <rect x="104" y="252" width="140" height="10" rx="3" fill="#3B4366"/>
+    <!-- Hero card -->
+    <rect x="320" y="120" width="380" height="220" rx="14" fill="#2A2F66"/>
+    <text x="360" y="240" font-family="sans-serif" font-size="84" font-weight="700" fill="#FFFFFF">141<tspan font-size="44" fill="#B4BAE8">t</tspan></text>
+    <rect x="360" y="270" width="240" height="10" rx="3" fill="#7A7DFF" opacity="0.6"/>
+    <!-- DQ card -->
+    <rect x="720" y="120" width="400" height="220" rx="14" fill="#FFFFFF" stroke="#E4E6EE"/>
+    <rect x="744" y="148" width="160" height="14" rx="4" fill="#1F2640"/>
+    <rect x="744" y="200" width="352" height="14" rx="4" fill="#00BBA7"/>
+    <rect x="744" y="232" width="200" height="10" rx="3" fill="#E4E6EE"/>
+    <!-- Donut -->
+    <rect x="320" y="370" width="380" height="290" rx="14" fill="#FFFFFF" stroke="#E4E6EE"/>
+    <circle cx="450" cy="515" r="80" fill="none" stroke="#F4F5F8" stroke-width="24"/>
+    <circle cx="450" cy="515" r="80" fill="none" stroke="#00BBA7" stroke-width="24" stroke-dasharray="320 503" transform="rotate(-90 450 515)"/>
+    <circle cx="450" cy="515" r="80" fill="none" stroke="#AD6EFF" stroke-width="24" stroke-dasharray="100 503" stroke-dashoffset="-320" transform="rotate(-90 450 515)"/>
+    <circle cx="450" cy="515" r="80" fill="none" stroke="#F35151" stroke-width="24" stroke-dasharray="60 503" stroke-dashoffset="-420" transform="rotate(-90 450 515)"/>
+    <!-- Bars card -->
+    <rect x="720" y="370" width="400" height="290" rx="14" fill="#FFFFFF" stroke="#E4E6EE"/>
+    <rect x="744" y="410" width="200" height="14" rx="3" fill="#7A7DFF"/>
+    <rect x="744" y="445" width="280" height="14" rx="3" fill="#7A7DFF" opacity="0.7"/>
+    <rect x="744" y="480" width="160" height="14" rx="3" fill="#7A7DFF" opacity="0.5"/>
+    <rect x="744" y="515" width="120" height="14" rx="3" fill="#7A7DFF" opacity="0.4"/>
+    <rect x="744" y="550" width="80" height="14" rx="3" fill="#7A7DFF" opacity="0.3"/>
+  </svg>
+</template>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="src/Icon.jsx"></script>
+<script type="text/babel" src="src/Logo.jsx"></script>
+<script type="text/babel" src="src/data.jsx"></script>
+<script type="text/babel" src="src/bits.jsx"></script>
+<script type="text/babel" src="src/SortableHeader.jsx"></script>
+<script type="text/babel" src="src/Shell.jsx"></script>
+<script type="text/babel" src="src/Overview.jsx"></script>
+<script type="text/babel" src="src/Calculations.jsx"></script>
+<script type="text/babel" src="src/DataEntries.jsx"></script>
+<script type="text/babel" src="src/BulkImport.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo } = React;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "density": "comfortable",
+  "drawerWidth": "56vw"
+}/*EDITMODE-END*/;
+
+function App() {
+  const [route, setRoute] = useState(() => localStorage.getItem("fe-proto-route") || "calcs");
+  const [calcFilter, setCalcFilter] = useState(() => {
+    const stored = localStorage.getItem("fe-proto-calc-filter");
+    // Migrate legacy keys to the new 3-state taxonomy
+    const map = { needs_review: "suggested", verified: "confirmed", locked: "confirmed" };
+    return map[stored] || stored || "suggested";
+  });
+  const [selCalcId, setSelCalcId] = useState(null);
+  const [selEntryId, setSelEntryId] = useState(null);
+  const [preselectEntry, setPreselectEntry] = useState(null);
+  const [entriesBatchFilter, setEntriesBatchFilter] = useState(null);
+  const [calcs, setCalcs] = useState(() => window.CALCS);
+  const [entries, setEntries] = useState(() => window.ENTRIES);
+  const [toast, setToast] = useState(null);
+
+  // Tweaks
+  const [tweaks, setTweaks] = useState(TWEAK_DEFAULTS);
+  const [tweakOn, setTweakOn] = useState(false);
+  useEffect(() => {
+    const onMsg = (e) => {
+      const d = e.data || {};
+      if (d.type === "__activate_edit_mode") setTweakOn(true);
+      if (d.type === "__deactivate_edit_mode") setTweakOn(false);
+    };
+    window.addEventListener("message", onMsg);
+    window.parent.postMessage({type:"__edit_mode_available"}, "*");
+    return () => window.removeEventListener("message", onMsg);
+  }, []);
+  const updateTweak = (k, v) => {
+    setTweaks(t => ({...t, [k]: v}));
+    window.parent.postMessage({type:"__edit_mode_set_keys", edits: {[k]: v}}, "*");
+  };
+
+  useEffect(() => { localStorage.setItem("fe-proto-route", route); }, [route]);
+  useEffect(() => { localStorage.setItem("fe-proto-calc-filter", calcFilter); }, [calcFilter]);
+
+  // Deep-dive preset for Calculations — tick bumps on each jump so Calculations re-applies
+  const [calcPreset, setCalcPreset] = useState({ tick: 0, bu: null, scope: null, category: null, query: "" });
+
+  // When switching routes, clear selections (avoid leaking into other pages)
+  const go = (newRoute, opts = {}) => {
+    setRoute(newRoute);
+    setSelCalcId(null);
+    if (newRoute !== "entries") setSelEntryId(null);
+    if (opts.filter) setCalcFilter(opts.filter);
+    if (opts.entryId) { setPreselectEntry(opts.entryId); setSelEntryId(opts.entryId); }
+    if (opts.calcId) { setSelCalcId(opts.calcId); }
+    if (newRoute === "entries") {
+      if (opts.batchId) setEntriesBatchFilter(opts.batchId);
+      else if (opts.clearBatchFilter) setEntriesBatchFilter(null);
+    }
+    if (opts.deepDive) {
+      // Reset other dimensions, set only what the caller passed
+      setCalcPreset(p => ({
+        tick: p.tick + 1,
+        bu: opts.deepDive.bu ?? null,
+        scope: opts.deepDive.scope ?? null,
+        category: opts.deepDive.category ?? null,
+        query: opts.deepDive.query ?? "",
+      }));
+      if (!opts.filter) setCalcFilter("all"); // default to all statuses on a deep dive
+    }
+  };
+
+  const needsReviewCount = calcs.filter(c => c.status === "pending" || c.status === "suggested").length;
+
+  const routeTitles = {
+    "getting-started":"Getting started", overview:"Overview", trends:"Trends",
+    calcs:"Calculations", factors:"Emission Factors",
+    entries:"Data entries", import:"Bulk import",
+    org:"Organization", settings:"Settings",
+  };
+
+  // ---- Calc drawer plumbing ----
+  const filteredCalcs = useMemo(() => {
+    if (calcFilter === "all") return calcs;
+    if (calcFilter === "pending")   return calcs.filter(c => c.status === "pending");
+    if (calcFilter === "suggested") return calcs.filter(c => c.status === "suggested");
+    if (calcFilter === "confirmed") return calcs.filter(c => c.status === "confirmed");
+    // Legacy filter keys → suggested (the old "needs_review")
+    if (calcFilter === "needs_review") return calcs.filter(c => c.status === "pending" || c.status === "suggested");
+    return calcs;
+  }, [calcs, calcFilter]);
+
+  const activeCalc = calcs.find(c => c.id === selCalcId);
+  const activeEntry = entries.find(e => e.id === selEntryId);
+
+  const navCalc = (dir) => {
+    const idx = filteredCalcs.findIndex(c => c.id === selCalcId);
+    if (idx < 0) return;
+    const next = filteredCalcs[Math.max(0, Math.min(filteredCalcs.length-1, idx + dir))];
+    if (next) setSelCalcId(next.id);
+  };
+  const navEntry = (dir) => {
+    const idx = entries.findIndex(e => e.id === selEntryId);
+    if (idx < 0) return;
+    const next = entries[Math.max(0, Math.min(entries.length-1, idx + dir))];
+    if (next) setSelEntryId(next.id);
+  };
+
+  const bulkToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2400); };
+  useEffect(() => {
+    const h = (e) => bulkToast(e.detail);
+    window.addEventListener("fe-toast", h);
+    return () => window.removeEventListener("fe-toast", h);
+  }, []);
+
+  // Export jobs — progress banners stacked bottom-right
+  const [exportJobs, setExportJobs] = useState([]);
+  useEffect(() => {
+    const onStart = (e) => {
+      const { title, meta, filename, rows } = e.detail || {};
+      const id = "exp_" + Math.random().toString(36).slice(2, 8);
+      // Scale duration with rows: ~1.2s min, ~4s for large
+      const duration = Math.min(4200, Math.max(1400, 900 + (rows || 200) * 1.2));
+      const startedAt = Date.now();
+      setExportJobs(js => [...js, { id, title, meta, filename, progress: 0, done: false, duration, startedAt }]);
+      const tick = setInterval(() => {
+        setExportJobs(js => js.map(j => {
+          if (j.id !== id || j.done) return j;
+          const p = Math.min(100, ((Date.now() - j.startedAt) / j.duration) * 100);
+          if (p >= 100) { clearInterval(tick); return { ...j, progress: 100, done: true }; }
+          return { ...j, progress: p };
+        }));
+      }, 140);
+      // Auto-dismiss 10s after completion
+      setTimeout(() => {
+        setExportJobs(js => js.filter(j => j.id !== id));
+      }, duration + 10000);
+    };
+    window.addEventListener("fe-export-start", onStart);
+    return () => window.removeEventListener("fe-export-start", onStart);
+  }, []);
+  const dismissJob = (id) => setExportJobs(js => js.filter(j => j.id !== id));
+
+  // Bulk actions for Data Entries — act on the entry_status and sync child calcs where meaningful
+  const entriesBulk = {
+    status: (ids, status) => {
+      // Update the entry-level status directly; no automatic propagation to calcs,
+      // except that "processing" clears any prior "confirmed" back to "suggested".
+      setEntries(es => es.map(e => ids.includes(e.id) ? {...e, entry_status: status} : e));
+      if (status === "processing") {
+        setCalcs(cs => cs.map(c => ids.includes(c.entryId) && c.status === "confirmed" ? {...c, status: "suggested"} : c));
+      }
+      bulkToast(`${ids.length} entries · set to ${status}`);
+    },
+    assign: (ids, user) => {
+      setEntries(es => es.map(e => ids.includes(e.id) ? {...e, user_assigned: user} : e));
+      setCalcs(cs => cs.map(c => ids.includes(c.entryId) ? {...c, user_assigned: user} : c));
+      bulkToast(`${ids.length} entries reassigned to ${user}`);
+    },
+    delete: (ids) => {
+      setEntries(es => es.filter(e => !ids.includes(e.id)));
+      setCalcs(cs => cs.filter(c => !ids.includes(c.entryId)));
+      bulkToast(`${ids.length} entries deleted · undo in 10s`);
+    },
+    export: (ids) => bulkToast(`Exporting ${ids.length} entries to CSV…`),
+  };
+
+  // Bulk actions for Calculations
+  const calcsBulk = {
+    status: (ids, status) => {
+      setCalcs(cs => cs.map(c => ids.includes(c.id)
+        ? {...c, status, confidence: status === "pending" ? null : c.confidence}
+        : c));
+      // Re-compute parent entry_status when child calcs change
+      setEntries(es => es.map(e => {
+        const myCalcs = (es === entries ? calcs : null); // fall back
+        return e; // entry_status will be re-evaluated lazily elsewhere if needed
+      }));
+      bulkToast(`${ids.length} calculations · set to ${status}`);
+    },
+    assign: (ids, user) => {
+      setCalcs(cs => cs.map(c => ids.includes(c.id) ? {...c, user_assigned: user} : c));
+      bulkToast(`${ids.length} calculations reassigned to ${user}`);
+    },
+    delete: (ids) => {
+      setCalcs(cs => cs.filter(c => !ids.includes(c.id)));
+      bulkToast(`${ids.length} calculations deleted`);
+    },
+    export: (ids) => bulkToast(`Exporting ${ids.length} calculations to CSV…`),
+  };
+
+  const approve = () => {
+    if (!activeCalc) return;
+    setCalcs(cs => cs.map(c => c.id === activeCalc.id ? {...c, status: "confirmed"} : c));
+    setToast(`Calculation ${activeCalc.id} confirmed · ${window.fmtKgSmart(activeCalc.kgCO2e)} kgCO₂e`);
+    setTimeout(() => setToast(null), 2200);
+  };
+  const reject = () => {
+    if (!activeCalc) return;
+    setCalcs(cs => cs.map(c => c.id === activeCalc.id ? {...c, status: "pending", confidence: null} : c));
+    setToast(`Calculation ${activeCalc.id} sent back to the AI match queue`);
+    setTimeout(() => setToast(null), 2200);
+  };
+  const swap = () => {
+    setToast("Factor swap — would open factor picker");
+    setTimeout(() => setToast(null), 1800);
+  };
+
+  return (
+    <div className="app" data-screen-label={`FE · ${routeTitles[route] || route}`} style={{fontSize: tweaks.density === "compact" ? 13 : 14}}>
+      <Sidebar route={route} setRoute={go} needsReviewCount={needsReviewCount} />
+      <div className="app-main">
+        <Topbar title={routeTitles[route] || "—"} />
+        <div className="app-scroll">
+          {route === "overview" && (
+            <Overview calcs={calcs} entries={entries} onJumpTo={(r,opts)=>go(r,opts)} />
+          )}
+          {route === "calcs" && (
+            <Calculations
+              preset={calcPreset}
+              calcs={calcs}
+              entries={entries}
+              selectedId={selCalcId}
+              setSelectedId={setSelCalcId}
+              filter={calcFilter}
+              setFilter={setCalcFilter}
+              onViewEntry={(eid) => go("entries", {entryId: eid})}
+              bulk={calcsBulk}
+            />
+          )}
+          {route === "entries" && (
+            <DataEntries
+              entries={entries}
+              calcs={calcs}
+              selectedId={selEntryId}
+              setSelectedId={setSelEntryId}
+              onViewCalc={(cid) => go("calcs", {calcId: cid})}
+              preselectEntryId={preselectEntry}
+              onViewImport={(batchId) => { go("import"); bulkToast(`Would open Bulk imports · ${batchId}`); }}
+              batchFilter={entriesBatchFilter}
+              onClearBatchFilter={() => setEntriesBatchFilter(null)}
+              bulk={entriesBulk}
+            />
+          )}
+          {route === "import" && (
+            <BulkImportHome onViewEntries={(batchId) => go("entries", {batchId})} />
+          )}
+          {!(["overview","calcs","entries","import"].includes(route)) && (
+            <div className="card" style={{padding:0, textAlign:"center"}}>
+              <div className="metric-label">{routeTitles[route]}</div>
+              <h2 className="page-title" style={{marginTop:12}}>{routeTitles[route]}</h2>
+              <div className="page-subtitle" style={{marginTop:6}}>
+                Out of scope for this prototype. Try <span className="link" onClick={() => go("overview")}>Overview</span>, <span className="link" onClick={() => go("calcs")}>Calculations</span>, or <span className="link" onClick={() => go("entries")}>Data entries</span>.
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Calculation drawer */}
+      {route === "calcs" && activeCalc && (
+        <CalculationDrawer
+          calc={activeCalc}
+          calcs={calcs}
+          entries={entries}
+          onClose={() => setSelCalcId(null)}
+          onNav={navCalc}
+          onApprove={approve}
+          onReject={reject}
+          onSwap={swap}
+          onViewEntry={(eid) => { setSelCalcId(null); go("entries", {entryId: eid}); }}
+          onViewCalc={(cid) => setSelCalcId(cid)}
+        />
+      )}
+
+      {/* Entry drawer */}
+      {route === "entries" && activeEntry && (
+        <EntryDrawer
+          entry={activeEntry}
+          calcs={calcs}
+          batches={window.BATCHES}
+          onClose={() => setSelEntryId(null)}
+          onNav={navEntry}
+          onViewCalc={(cid) => { setSelEntryId(null); go("calcs", {calcId: cid}); }}
+          onViewImport={(batchId) => { setSelEntryId(null); go("import"); bulkToast(`Would open Bulk imports · ${batchId}`); }}
+        />
+      )}
+
+      {toast && (
+        <div className="toast"><Icon name="check" size={16} className="icon"/>{toast}</div>
+      )}
+
+      {exportJobs.length > 0 && (
+        <div className="export-jobs">
+          {exportJobs.map(j => (
+            <div key={j.id} className={"export-job " + (j.done ? "done" : "")}>
+              <div className="ej-top">
+                <div className="ej-icon">
+                  <Icon name={j.done ? "check" : "arrowDown"} size={16}/>
+                </div>
+                <div className="ej-body">
+                  <div className="ej-title">{j.done ? "Export ready" : "Preparing export…"}</div>
+                  <div className="ej-meta">
+                    <span>{j.title}</span>
+                    {j.meta && <><span>·</span><span>{j.meta}</span></>}
+                  </div>
+                </div>
+                <button className="ej-close" onClick={() => dismissJob(j.id)} aria-label="Dismiss">
+                  <Icon name="close" size={14}/>
+                </button>
+              </div>
+              <div className="ej-progress">
+                <div className="ej-progress-fill" style={{width: j.progress + "%"}}/>
+              </div>
+              {j.done && (
+                <div className="ej-actions">
+                  <button className="link-btn" onClick={() => dismissJob(j.id)}>
+                    <Icon name="arrowDown" size={13}/>Download {j.filename}
+                  </button>
+                  <button className="link-btn muted" onClick={() => dismissJob(j.id)}>Dismiss</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Tweaks panel */}
+      {tweakOn && (
+        <div className="tweaks">
+          <h4><Icon name="settings" size={14}/>Tweaks</h4>
+          <div className="row">
+            <label>Density</label>
+            <select value={tweaks.density} onChange={e => updateTweak("density", e.target.value)}>
+              <option value="comfortable">Comfortable</option>
+              <option value="compact">Compact</option>
+            </select>
+          </div>
+          <div className="row">
+            <label>Drawer width</label>
+            <select value={tweaks.drawerWidth} onChange={e => { updateTweak("drawerWidth", e.target.value); document.documentElement.style.setProperty("--fe-drawer-w", e.target.value); }}>
+              <option value="40vw">Narrow (40vw)</option>
+              <option value="48vw">Default (48vw)</option>
+              <option value="56vw">Wide (56vw)</option>
+            </select>
+          </div>
+          <div style={{fontSize:11, color:"var(--fe-fg-muted)", marginTop:8, borderTop:"1px solid var(--fe-border-subtle)", paddingTop:8}}>
+            Shortcuts: <span className="kbd">J</span>/<span className="kbd">K</span> next/prev · <span className="kbd">Esc</span> close drawer
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Apply drawer width CSS var
+document.documentElement.style.setProperty("--fe-drawer-w", "48vw");
+const style = document.createElement("style");
+style.textContent = `.drawer { width: var(--fe-drawer-w, 48vw); }`;
+document.head.appendChild(style);
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
